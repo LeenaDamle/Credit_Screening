@@ -1,0 +1,87 @@
+---
+title: "Detecting credit defaulters using random forest"
+output:
+  word_document: default
+  html_notebook: default
+---
+
+```
+
+#Random Forest analysis of the credit data
+
+```{r, eval=FALSE}
+#https://archive.ics.uci.edu/ml/machine-learning-databases/00350/default%20of%20credit%20card%20clients.xls
+#Step 1: Collect data
+credit <- read.csv("default_of_credit_card_clients_1.csv")
+```
+
+#In the csv file used, we discard column names X1, X2... to more meaningful names given in row2- LIMIT_BAL, SEX.. present in the second row
+#remove the ID variable to avoid overfitting and remove factor names additionally present in row
+credit<-credit[,-1]
+```
+```{r, eval=FALSE}
+#Step 2: exploring the data
+str(credit)
+table(credit$default.payment.next.month)
+prop.table(table(credit$default.payment.next.month))
+```
+```{r, eval=FALSE}
+#preparing the data:
+
+#preparing test and train data 80%-20%
+credit_train <- credit[1:24000,]
+credit_test <- credit[24001:30000,]
+
+credit_train_labels <- credit[1:24000,]$default.payment.next.month
+credit_test_labels <- credit[24001:30000,]$default.payment.next.month
+
+
+```
+
+```{r, eval=FALSE}
+#Step 3: Training the model
+library(randomForest)
+credit_rf <-credit
+credit_rf$default.payment.next.month <- as.factor(credit_rf$default.payment.next.month)
+#preparing test and train data 80%-20%
+credit_train <- credit_rf[1:24000,]
+credit_test <- credit_rf[24001:30000,]
+
+credit_train_labels <- credit_rf[1:24000,]$default.payment.next.month
+credit_test_labels <- credit_rf[24001:30000,]$default.payment.next.month
+
+## Using the random forest library we create a forest of trees based on the training data
+set.seed(123)
+rf <- randomForest(default.payment.next.month ~ ., data = credit_train , mtry = 5)
+
+```
+```{r, eval=FALSE}
+#Step 4: Evaluating model performance
+pred_train <- predict(rf,credit_train)
+table(pred_train, credit_train$default.payment.next.month)
+```
+#On testing the model on training data, we get 99.45% accuracy
+```{r, eval=FALSE}
+credit_pred <- predict(rf, credit_test)
+table(credit_pred, credit_test$default.payment.next.month)
+```
+#On using the test data, we get an accuracy of 82.75%
+```{r, eval=FALSE}
+#Step 5: Improving the model
+library(caret)
+ctrl <- trainControl(method = "repeatedcv",
+                     number = 4, repeats = 4)
+# auto-tune a random forest
+grid_rf <- expand.grid(.mtry = c(2, 4, 8))
+
+set.seed(123)
+m_rf <- train(default.payment.next.month ~ ., data = credit_train, method = "rf",
+              metric = "Kappa", trControl = ctrl,
+              tuneGrid = grid_rf)
+pred_train <- predict(rf,credit_train)
+table(pred_train, credit_train$default.payment.next.month)
+```
+```{r, eval=FALSE}
+credit_pred <- predict(rf, credit_test)
+table(credit_pred, credit_test$default.payment.next.month)
+```
